@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Control</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .page { display: none; }
+    .page.active { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary d-none" id="navbar">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Stock Control</a>
+      <div class="d-flex overflow-auto" id="navMenus"></div>
+      <button class="btn btn-outline-light btn-sm ms-3" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <!-- Loader -->
+    <div id="loader" class="text-center my-5" style="display:none;">
+      <div class="spinner-border text-primary"></div>
+      <p>Memuat...</p>
+    </div>
+
+    <!-- Login -->
+    <div id="page-login" class="page active mx-auto" style="max-width: 400px;">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h4 class="card-title text-center mb-4">Login</h4>
+          <input type="text" id="username" class="form-control mb-3" placeholder="Username">
+          <input type="password" id="password" class="form-control mb-3" placeholder="Password">
+          <button class="btn btn-primary w-100" onclick="handleLogin()">Masuk</button>
+          <div class="mt-3 text-muted small text-center">Gunakan: admin / 123</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="page">
+      <div class="card text-white bg-primary mb-4 shadow-sm" style="background: linear-gradient(to right, #0d6efd, #6610f2) !important;">
+        <div class="card-body py-4">
+          <h3 class="card-title mb-1" id="greeting-title">Halo!</h3>
+          <p class="card-text mb-0" id="greeting-text">Semangat kerjanya ya! Jangan lupa ngopi ☕</p>
+        </div>
+      </div>
+
+      <!-- Highlight Cards -->
+      <div class="row mb-4">
+        <div class="col-md-4 mb-3 mb-md-0">
+          <div class="card bg-info text-white shadow-sm h-100" style="cursor:pointer;" onclick="openModal('modalTrans')">
+            <div class="card-body py-3 d-flex flex-column justify-content-center">
+              <h6 class="mb-2">Transaksi Hari Ini</h6>
+              <div class="d-flex justify-content-between">
+                <div>
+                  <small>Total IN</small><br>
+                  <h4 class="mb-0 fw-bold" id="total-in">0</h4>
+                </div>
+                <div class="text-end">
+                  <small>Total OUT</small><br>
+                  <h4 class="mb-0 fw-bold" id="total-out">0</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3 mb-md-0">
+          <div class="card bg-warning text-dark shadow-sm h-100" style="cursor:pointer;" onclick="openModal('modalOver')">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <h6>Over Stock</h6>
+              <h3 id="over-stock-count" class="mb-0 fw-bold">0</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-danger text-white shadow-sm h-100" style="cursor:pointer;" onclick="openModal('modalCrit')">
+            <div class="card-body d-flex flex-column justify-content-center">
+              <h6>Stock Kritis</h6>
+              <h3 id="crit-stock-count" class="mb-0 fw-bold">0</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
+        <h5 class="mb-0">Status Stok Saat Ini</h5>
+        <input type="text" class="form-control" style="max-width:300px" placeholder="Cari Part..." id="dashSearch" onkeyup="filterDash()">
+      </div>
+
+      <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="text-center">No</th>
+              <th>Part No</th>
+              <th>Part Name</th>
+              <th class="text-center text-success">Total IN</th>
+              <th class="text-center text-danger">Total OUT</th>
+              <th class="text-center bg-primary text-white">Current Stock</th>
+            </tr>
+          </thead>
+          <tbody id="dash-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Transaksi IN -->
+    <div id="page-in" class="page" style="max-width: 500px; margin: 0 auto;">
+      <h4 class="mb-3 text-success">Transaksi IN</h4>
+      <div class="card shadow-sm"><div class="card-body">
+        <label class="form-label">Pilih Part</label>
+        <input type="text" id="in-part" list="in-part-list" class="form-control mb-3" placeholder="Ketik untuk mencari...">
+        <datalist id="in-part-list"></datalist>
+        <label class="form-label">Qty (Quantity)</label>
+        <input type="number" id="in-qty" class="form-control mb-3" placeholder="0">
+        <label class="form-label">Keterangan (Mau taruh mana nih?)</label>
+        <input type="text" id="in-remark" class="form-control mb-3" placeholder="Cth: Rak A2, Box 5...">
+        <button class="btn btn-success w-100" onclick="confirmTrans('IN')">Simpan IN</button>
+      </div></div>
+    </div>
+
+    <!-- Transaksi OUT -->
+    <div id="page-out" class="page" style="max-width: 500px; margin: 0 auto;">
+      <h4 class="mb-3 text-danger">Transaksi OUT</h4>
+      <div class="card shadow-sm"><div class="card-body">
+        <label class="form-label">Pilih Part</label>
+        <input type="text" id="out-part" list="out-part-list" class="form-control mb-3" placeholder="Ketik untuk mencari..." onchange="onOutPartChange()">
+        <datalist id="out-part-list"></datalist>
+        <div id="out-stock-info" class="alert alert-info py-2 d-none fw-bold small"></div>
+        <label class="form-label">Qty Keluar</label>
+        <input type="number" id="out-qty" class="form-control mb-3" placeholder="0">
+        <label class="form-label">Keterangan</label>
+        <input type="text" id="out-remark" class="form-control mb-3" placeholder="Cth: Dipakai untuk line 2...">
+        <button class="btn btn-danger w-100" onclick="confirmTrans('OUT')">Simpan OUT</button>
+      </div></div>
+    </div>
+
+    <!-- Master Part -->
+    <div id="page-master" class="page">
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
+        <h4 class="mb-0">Master Part</h4>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="downloadTemplate()">Unduh Template</button>
+          <button class="btn btn-sm btn-success" onclick="document.getElementById('csv-file').click()">Upload CSV</button>
+          <input type="file" id="csv-file" accept=".csv" class="d-none" onchange="handleCSVUpload(event)">
+        </div>
+      </div>
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-2"><input type="text" id="m-partno" class="form-control" placeholder="Part No"></div>
+            <div class="col-md-4"><input type="text" id="m-name" class="form-control" placeholder="Part Name"></div>
+            <div class="col-md-2"><input type="number" id="m-stock" class="form-control" placeholder="Stock Awal"></div>
+            <div class="col-md-2"><input type="number" id="m-min" class="form-control" placeholder="Min Stock"></div>
+            <div class="col-md-2"><input type="number" id="m-max" class="form-control" placeholder="Max Stock"></div>
+            <div class="col-12"><button class="btn btn-primary w-100" onclick="saveMaster()">Simpan Part</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table align-middle mb-0">
+          <thead class="table-light"><tr><th>Part No</th><th>Name</th><th>Stock Awal</th><th>Min</th><th>Max</th></tr></thead>
+          <tbody id="master-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div id="page-history" class="page">
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
+        <h4 class="mb-0">Riwayat Transaksi</h4>
+        <input type="text" class="form-control" style="max-width:300px" placeholder="Cari Histori..." id="histSearch" onkeyup="filterHist()">
+      </div>
+      <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="text-center">No</th>
+              <th>Waktu</th>
+              <th>User</th>
+              <th>Tipe</th>
+              <th>Part No</th>
+              <th>Part Name</th>
+              <th class="text-center">Qty</th>
+              <th>Keterangan</th>
+              <th class="text-center">Bagikan</th>
+              <th id="history-action-header" class="text-center">Aksi (Revisi Qty)</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal fade" id="modalTrans" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Transaksi Hari Ini</h5>
+          <button type="button" class="btn-close" onclick="closeModal('modalTrans')"></button>
+        </div>
+        <div class="modal-body p-0 p-sm-3" id="modalTransBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalOver" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Daftar Over Stock</h5>
+          <button type="button" class="btn-close" onclick="closeModal('modalOver')"></button>
+        </div>
+        <div class="modal-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light"><tr><th class="text-center">No</th><th>Part No</th><th>Part Name</th><th>Current Qty</th><th>Max Qty</th></tr></thead>
+              <tbody id="modalOverBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalCrit" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Daftar Stock Kritis</h5>
+          <button type="button" class="btn-close" onclick="closeModal('modalCrit')"></button>
+        </div>
+        <div class="modal-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light"><tr><th class="text-center">No</th><th>Part No</th><th>Part Name</th><th>Current Qty</th><th>Min Qty</th></tr></thead>
+              <tbody id="modalCritBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalHistory" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="historyModalTitle">History Part</h5>
+          <button type="button" class="btn-close" onclick="closeModal('modalHistory')"></button>
+        </div>
+        <div class="modal-body p-0 p-sm-3">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light"><tr><th class="text-center">No</th><th>Waktu</th><th>User</th><th>Tipe</th><th>Part No</th><th>Part Name</th><th class="text-center">Qty</th><th>Keterangan</th><th class="text-center">Bagikan</th></tr></thead>
+              <tbody id="modalHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalConfirm" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-body p-4">
+          <h5 class="fw-bold mb-3">Yakin ga qty segini?</h5>
+          <p id="confirm-msg" class="text-muted small mb-4">Anda akan menyimpan data.</p>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light flex-fill fw-bold" onclick="closeModal('modalConfirm')">Ragu</button>
+            <button type="button" class="btn btn-primary flex-fill fw-bold" id="btn-confirm-yes">Yakin Dong</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let currentUser = null;
+    window.appDashboard = null; // Cache global dashboard data
+    let modals = {};
+
+    const greetings = [
+      "Semangat kerjanya ya! Jangan lupa ngopi ☕",
+      "Gas terus! Rezeki gak akan kemana 🚀",
+      "Kerja santai tapi kelar semua, mantap! 🎯",
+      "Jangan lupa senyum hari ini 😊",
+      "Lelah boleh, menyerah jangan! Yuk bisa yuk 💪",
+      "Fokus! Hari ini pasti lebih baik dari kemarin ✨"
+    ];
+
+    document.addEventListener("DOMContentLoaded", function() {
+      modals.modalTrans = new bootstrap.Modal(document.getElementById('modalTrans'));
+      modals.modalOver = new bootstrap.Modal(document.getElementById('modalOver'));
+      modals.modalCrit = new bootstrap.Modal(document.getElementById('modalCrit'));
+      modals.modalConfirm = new bootstrap.Modal(document.getElementById('modalConfirm'));
+    });
+
+    function openModal(id) {
+      if(id === 'modalTrans') populateTransModal();
+      if(id === 'modalOver') populateOverModal();
+      if(id === 'modalCrit') populateCritModal();
+      modals[id].show();
+    }
+    
+    function closeModal(id) {
+      modals[id].hide();
+    }
+
+    function showLoading(show) { document.getElementById('loader').style.display = show ? 'block' : 'none'; }
+    
+    function loadGlobalData(callback) {
+      showLoading(true);
+      google.script.run.withSuccessHandler(data => {
+        showLoading(false);
+        window.appDashboard = data;
+        if(callback) callback();
+      }).getDashboardData();
+    }
+
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+      
+      if(pageId === 'dashboard') {
+        document.getElementById('greeting-title').innerText = `Halo, ${currentUser.fullname || currentUser.username}!`;
+        document.getElementById('greeting-text').innerText = greetings[Math.floor(Math.random() * greetings.length)];
+        loadGlobalData(renderDashboard);
+      }
+      if(pageId === 'in') loadGlobalData(() => { populateSelect('in'); });
+      if(pageId === 'out') loadGlobalData(() => { populateSelect('out'); });
+      if(pageId === 'master') loadGlobalData(renderMaster);
+      if(pageId === 'history') loadHistory();
+    }
+
+    function handleLogin() {
+      showLoading(true);
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      google.script.run.withSuccessHandler(res => {
+        showLoading(false);
+        if(res.success) {
+          currentUser = res.user;
+          document.getElementById('navbar').classList.remove('d-none');
+          document.getElementById('page-login').classList.remove('active');
+          
+          let menus = `<button class="btn btn-link text-white text-decoration-none" onclick="showPage('dashboard')">Dashboard</button>`;
+          if(currentUser.role === 'PPIC' || currentUser.role === 'IN') 
+            menus += `<button class="btn btn-link text-white text-decoration-none" onclick="showPage('in')">Trans IN</button>`;
+          if(currentUser.role === 'PPIC' || currentUser.role === 'OUT') 
+            menus += `<button class="btn btn-link text-white text-decoration-none" onclick="showPage('out')">Trans OUT</button>`;
+          if(currentUser.role === 'PPIC') {
+            menus += `<button class="btn btn-link text-white text-decoration-none" onclick="showPage('master')">Master Part</button>`;
+            menus += `<button class="btn btn-link text-white text-decoration-none" onclick="showPage('history')">History</button>`;
+          }
+          document.getElementById('navMenus').innerHTML = menus;
+          
+          document.getElementById('history-action-header').style.display = currentUser.role === 'PPIC' ? '' : 'none';
+
+          showPage('dashboard');
+        } else alert(res.message);
+      }).loginUser(u, p);
+    }
+
+    function logout() {
+      currentUser = null;
+      window.appDashboard = null;
+      document.getElementById('navbar').classList.add('d-none');
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-login').classList.add('active');
+    }
+
+    function renderDashboard() {
+      const data = window.appDashboard;
+      
+      const totalIn = data.shiftData.s1_in + data.shiftData.s2_in;
+      const totalOut = data.shiftData.s1_out + data.shiftData.s2_out;
+
+      document.getElementById('total-in').innerText = totalIn;
+      document.getElementById('total-out').innerText = totalOut;
+      document.getElementById('over-stock-count').innerText = data.overStockCount;
+      document.getElementById('crit-stock-count').innerText = data.criticalStockCount;
+
+      const tbody = document.getElementById('dash-tbody');
+      tbody.innerHTML = '';
+      data.items.forEach((d, i) => {
+        let rowClass = 'dash-row';
+        let stockClass = 'text-primary bg-primary-subtle';
+        
+        if (d.max_stock > 0 && d.current_stock > d.max_stock) {
+          rowClass += ' table-warning';
+          stockClass = 'text-warning-emphasis bg-warning-subtle';
+        } else if (d.min_stock > 0 && d.current_stock <= d.min_stock) {
+          rowClass += ' table-danger';
+          stockClass = 'text-danger bg-danger-subtle';
+        }
+
+        const tr = `<tr class="${rowClass}" style="cursor:pointer;" onclick="openHistoryModal('${d.part_no}')">
+          <td class="text-center text-muted small">${i + 1}</td>
+          <td class="fw-bold col-no text-nowrap">${d.part_no}</td>
+          <td class="col-name">${d.part_name}</td>
+          <td class="text-center text-success fw-bold">+${d.in_qty}</td>
+          <td class="text-center text-danger fw-bold">-${d.out_qty}</td>
+          <td class="text-center fw-bold ${stockClass}">${d.current_stock}</td>
+        </tr>`;
+        tbody.insertAdjacentHTML('beforeend', tr);
+      });
+      filterDash();
+    }
+
+    function filterDash() {
+      const val = document.getElementById('dashSearch').value.toLowerCase();
+      document.querySelectorAll('.dash-row').forEach(row => {
+        const no = row.querySelector('.col-no').innerText.toLowerCase();
+        const name = row.querySelector('.col-name').innerText.toLowerCase();
+        row.style.display = (no.includes(val) || name.includes(val)) ? '' : 'none';
+      });
+    }
+
+    function filterHist() {
+      const val = document.getElementById('histSearch').value.toLowerCase();
+      document.querySelectorAll('.hist-row').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(val) ? '' : 'none';
+      });
+    }
+
+    function populateTransModal() {
+      const data = window.appDashboard;
+      if(!data || !data.todayTransactions || data.todayTransactions.length === 0) {
+        document.getElementById('modalTransBody').innerHTML = '<p class="text-center p-4 text-muted">Belum ada transaksi hari ini.</p>';
+        return;
+      }
+      
+      let html = '';
+      [1, 2].forEach(shift => {
+        const txs = data.todayTransactions.filter(t => t.shift === shift);
+        if(txs.length > 0) {
+          html += `<div class="p-2 sm:p-0"><h6 class="border-bottom pb-2">Shift ${shift} ${shift === 1 ? '(07:00 - 19:29)' : '(19:30 - 06:59)'}</h6>
+          <div class="table-responsive">
+          <table class="table table-sm mb-4 text-nowrap">
+            <thead class="table-light"><tr><th class="text-center">No</th><th>Waktu</th><th>User</th><th>Tipe</th><th>Part No</th><th class="text-center">Qty</th><th>Keterangan</th></tr></thead>
+            <tbody>`;
+          txs.forEach((t, i) => {
+            let badge = t.type === 'IN' ? 'bg-success' : 'bg-danger';
+            html += `<tr>
+              <td class="text-center text-muted">${i+1}</td>
+              <td>${new Date(t.timestamp).toLocaleTimeString()}</td>
+              <td>${t.username}</td>
+              <td><span class="badge ${badge}">${t.type}</span></td>
+              <td class="fw-bold">${t.part_no}</td>
+              <td class="text-center fw-bold">${t.qty}</td>
+              <td class="text-muted small fst-italic text-truncate" style="max-width:200px">${t.remark || '-'}</td>
+            </tr>`;
+          });
+          html += `</tbody></table></div></div>`;
+        }
+      });
+      document.getElementById('modalTransBody').innerHTML = html;
+    }
+
+    function populateOverModal() {
+      const data = window.appDashboard;
+      const items = data.items.filter(d => d.max_stock > 0 && d.current_stock > d.max_stock);
+      const tbody = document.getElementById('modalOverBody');
+      tbody.innerHTML = '';
+      items.forEach((d, i) => {
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td class="text-center text-muted">${i+1}</td>
+          <td class="fw-bold text-nowrap">${d.part_no}</td>
+          <td>${d.part_name}</td>
+          <td class="text-warning-emphasis fw-bold text-center">${d.current_stock}</td>
+          <td class="text-muted text-center">${d.max_stock}</td>
+        </tr>`);
+      });
+    }
+
+    function populateCritModal() {
+      const data = window.appDashboard;
+      const items = data.items.filter(d => d.min_stock > 0 && d.current_stock <= d.min_stock);
+      const tbody = document.getElementById('modalCritBody');
+      tbody.innerHTML = '';
+      items.forEach((d, i) => {
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td class="text-center text-muted">${i+1}</td>
+          <td class="fw-bold text-nowrap">${d.part_no}</td>
+          <td>${d.part_name}</td>
+          <td class="text-danger fw-bold text-center">${d.current_stock}</td>
+          <td class="text-muted text-center">${d.min_stock}</td>
+        </tr>`);
+      });
+    }
+
+    function populateSelect(pageId) {
+      const list = document.getElementById(pageId + '-part-list');
+      list.innerHTML = '';
+      window.appDashboard.items.forEach(d => {
+        list.insertAdjacentHTML('beforeend', `<option value="${d.part_no}">${d.part_no} - ${d.part_name}</option>`);
+      });
+      document.getElementById(pageId + '-part').value = '';
+      document.getElementById(pageId + '-qty').value = '';
+      document.getElementById(pageId + '-remark').value = '';
+      
+      if (pageId === 'out') {
+        document.getElementById('out-stock-info').classList.add('d-none');
+      }
+    }
+
+    function onOutPartChange() {
+      const p = document.getElementById('out-part').value;
+      const info = document.getElementById('out-stock-info');
+      if (p && window.appDashboard) {
+        // Extract part_no from potential datalist value format "part_no - part_name" or just "part_no"
+        const partNo = p.split(' - ')[0]; 
+        const item = window.appDashboard.items.find(x => x.part_no === partNo);
+        if (item) {
+          info.innerText = "Stock Terkini: " + item.current_stock;
+          info.classList.remove('d-none');
+        } else {
+          info.classList.add('d-none');
+        }
+      } else {
+        info.classList.add('d-none');
+      }
+    }
+
+    function confirmTrans(type) {
+      const prefix = type.toLowerCase();
+      let partInput = document.getElementById(prefix + '-part').value;
+      const qty = Number(document.getElementById(prefix + '-qty').value);
+      const remark = document.getElementById(prefix + '-remark').value;
+      
+      const part = partInput.split(' - ')[0];
+      
+      if(!part || !qty || qty <= 0 || !remark) {
+        return alert('Pilih part, masukkan Qty > 0, dan lengkapi keterangan!');
+      }
+      
+      if(type === 'OUT' && window.appDashboard) {
+        const item = window.appDashboard.items.find(x => x.part_no === part);
+        if(item && qty > item.current_stock) {
+          return alert('Gagal: Stock tidak cukup! Stock saat ini = ' + item.current_stock);
+        }
+      }
+
+      document.getElementById('confirm-msg').innerHTML = `Anda akan ${type === 'IN' ? 'menyimpan' : 'mengeluarkan'} item <strong>${part}</strong> dengan Qty <strong>${qty}</strong>.`;
+      
+      const btn = document.getElementById('btn-confirm-yes');
+      btn.className = 'btn flex-fill fw-bold ' + (type === 'IN' ? 'btn-success' : 'btn-danger');
+      btn.onclick = () => {
+        closeModal('modalConfirm');
+        submitTrans(type, part, qty, remark);
+      };
+      
+      modals.modalConfirm.show();
+    }
+
+    function submitTrans(type, part, qty, remark) {
+      showLoading(true);
+      google.script.run.withSuccessHandler(res => {
+        showLoading(false);
+        alert('Transaksi berhasil disimpan');
+        document.getElementById(type.toLowerCase() + '-part').value = '';
+        document.getElementById(type.toLowerCase() + '-qty').value = '';
+        document.getElementById(type.toLowerCase() + '-remark').value = '';
+        if(type === 'OUT') document.getElementById('out-stock-info').classList.add('d-none');
+      }).recordTransaction(type, part, qty, currentUser.username, remark);
+    }
+
+    function renderMaster() {
+      const tbody = document.getElementById('master-tbody');
+      tbody.innerHTML = '';
+      window.appDashboard.items.forEach(d => {
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+          <td class="fw-bold">${d.part_no}</td>
+          <td>${d.part_name}</td>
+          <td>${d.initial_stock}</td>
+          <td>${d.min_stock}</td>
+          <td>${d.max_stock}</td>
+        </tr>`);
+      });
+    }
+
+    function saveMaster() {
+      const no = document.getElementById('m-partno').value;
+      const name = document.getElementById('m-name').value;
+      const stock = document.getElementById('m-stock').value || 0;
+      const minS = document.getElementById('m-min').value || 0;
+      const maxS = document.getElementById('m-max').value || 0;
+      
+      if(!no || !name) return alert('Isi Part No dan Name');
+      
+      showLoading(true);
+      google.script.run.withSuccessHandler(() => {
+        document.getElementById('m-partno').value = '';
+        document.getElementById('m-name').value = '';
+        document.getElementById('m-stock').value = '';
+        document.getElementById('m-min').value = '';
+        document.getElementById('m-max').value = '';
+        loadGlobalData(renderMaster);
+      }).saveMaster(no, name, stock, minS, maxS, currentUser.username);
+    }
+
+    function loadHistory() {
+      showLoading(true);
+      google.script.run.withSuccessHandler(data => {
+        showLoading(false);
+        const tbody = document.getElementById('history-tbody');
+        tbody.innerHTML = '';
+        data.forEach((d, i) => {
+          const dt = new Date(d.timestamp).toLocaleString();
+          let badge = 'bg-secondary';
+          if(d.type === 'IN') badge = 'bg-success';
+          if(d.type === 'OUT') badge = 'bg-danger';
+          if(d.type.includes('LOG')) badge = 'bg-dark opacity-75';
+          
+          let actionCol = '';
+          if(currentUser.role === 'PPIC') {
+            if(d.type === 'IN' || d.type === 'OUT') {
+              actionCol = `
+                <td class="text-center">
+                  <div class="d-flex gap-2 align-items-center justify-content-center">
+                    <input type="number" id="qty-${d.id}" value="${d.qty}" class="form-control form-control-sm text-center" style="width:70px">
+                    <button class="btn btn-sm btn-outline-primary" onclick="updateQty('${d.id}')">Simpan</button>
+                  </div>
+                </td>`;
+            } else {
+              actionCol = `<td class="text-muted small text-center">-</td>`;
+            }
+          }
+
+          let qtyDisplay = d.qty;
+          if(d.type.includes('LOG')) qtyDisplay = '-';
+          
+          let histObjStr = encodeURIComponent(JSON.stringify(d));
+
+          tbody.insertAdjacentHTML('beforeend', `<tr class="hist-row">
+            <td class="text-center text-muted small">${i + 1}</td>
+            <td class="text-muted small text-nowrap">${dt}</td>
+            <td class="text-nowrap">${d.username}</td>
+            <td><span class="badge ${badge}">${d.type}</span></td>
+            <td class="fw-bold text-nowrap">${d.part_no}</td>
+            <td class="text-muted">${d.part_name}</td>
+            <td class="text-center fw-bold ${d.type === 'IN' ? 'text-success' : (d.type === 'OUT' ? 'text-danger' : '')}">${qtyDisplay}</td>
+            <td class="text-muted small fst-italic" style="max-width: 150px;">${d.remark || '-'}</td>
+            <td class="text-center"><button class="btn btn-sm btn-success py-0 px-2 text-white" style="font-size:12px;" onclick="shareWA('${histObjStr}')">Share WA</button></td>
+            ${actionCol}
+          </tr>`);
+        });
+        filterHist();
+      }).getHistory();
+    }
+
+    function updateQty(id) {
+      const newQty = document.getElementById('qty-' + id).value;
+      showLoading(true);
+      google.script.run.withSuccessHandler(res => {
+        showLoading(false);
+        if(res.success) {
+          alert('Qty berhasil direvisi');
+          loadHistory();
+        } else {
+          alert(res.message);
+        }
+      }).updateHistoryQty(id, newQty, currentUser.username);
+    }
+    
+    function shareWA(histStr) {
+      const hist = JSON.parse(decodeURIComponent(histStr));
+      const dt = new Date(hist.timestamp).toLocaleString('id-ID');
+      const text = `*Histori Part*\n\nNo Part: ${hist.part_no}\nNama Part: ${hist.part_name}\nWaktu: ${dt}\nUser: ${hist.username}\nTipe: ${hist.type}\nQty: ${hist.qty}\nKeterangan: ${hist.remark || "-"}`;
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    }
+    
+    function openHistoryModal(partNo) {
+      if(!modals.modalHistory) modals.modalHistory = new bootstrap.Modal(document.getElementById('modalHistory'));
+      
+      const item = window.appDashboard.items.find(x => x.part_no === partNo);
+      document.getElementById('historyModalTitle').innerText = 'History 8 Terakhir - ' + (item ? item.part_no : partNo);
+      document.getElementById('modalHistoryBody').innerHTML = '<tr><td colspan="9" class="text-center text-muted">Memuat...</td></tr>';
+      modals.modalHistory.show();
+      
+      google.script.run.withSuccessHandler(data => {
+        const tbody = document.getElementById('modalHistoryBody');
+        tbody.innerHTML = '';
+        if(data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Belum ada history.</td></tr>';
+          return;
+        }
+        data.forEach((d, i) => {
+          const dt = new Date(d.timestamp).toLocaleString('id-ID');
+          let badge = 'bg-secondary';
+          if(d.type === 'IN') badge = 'bg-success';
+          if(d.type === 'OUT') badge = 'bg-danger';
+          if(d.type.includes('LOG')) badge = 'bg-dark opacity-75';
+          let qtyDisplay = d.type.includes('LOG') ? '-' : d.qty;
+          let histObjStr = encodeURIComponent(JSON.stringify(d));
+          
+          tbody.insertAdjacentHTML('beforeend', `<tr>
+            <td class="text-center text-muted small">${i + 1}</td>
+            <td class="text-muted small text-nowrap">${dt}</td>
+            <td class="text-nowrap">${d.username}</td>
+            <td><span class="badge ${badge}">${d.type}</span></td>
+            <td class="fw-bold text-nowrap">${d.part_no}</td>
+            <td class="text-muted">${d.part_name}</td>
+            <td class="text-center fw-bold ${d.type === 'IN' ? 'text-success' : (d.type === 'OUT' ? 'text-danger' : '')}">${qtyDisplay}</td>
+            <td class="text-muted small fst-italic" style="max-width: 150px;">${d.remark || '-'}</td>
+            <td class="text-center"><button class="btn btn-sm btn-success py-0 px-2 text-white" style="font-size:12px;" onclick="shareWA('${histObjStr}')">Share WA</button></td>
+          </tr>`);
+        });
+      }).getHistoryByPart(partNo);
+    }
+    
+    function downloadTemplate() {
+      const csvContent = "Part No,Part Name,Stock Awal,Min,Max\nPART-001,Baut 10mm,100,10,200";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "Template_Part_Master.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    function handleCSVUpload(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+      showLoading(true);
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const text = event.target.result;
+          const lines = text.split('\\n').map(l => l.trim()).filter(l => l);
+          const startIndex = lines[0].toLowerCase().includes('part no') ? 1 : 0;
+          const parts = [];
+          for (let i = startIndex; i < lines.length; i++) {
+            const cols = lines[i].split(',').map(c => c.trim());
+            if (cols.length >= 2 && cols[0]) {
+              parts.push({
+                partNo: cols[0],
+                partName: cols[1],
+                initialStock: cols[2] || 0,
+                minStock: cols[3] || 0,
+                maxStock: cols[4] || 0
+              });
+            }
+          }
+          if(parts.length === 0) throw new Error("Format tidak valid.");
+          
+          google.script.run.withSuccessHandler(res => {
+            showLoading(false);
+            alert(res.message);
+            document.getElementById('csv-file').value = '';
+            loadGlobalData(renderMaster);
+          }).uploadCSV(parts, currentUser.username);
+        } catch(err) {
+          showLoading(false);
+          alert("Gagal memproses file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>

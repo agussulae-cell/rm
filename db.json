@@ -1,0 +1,12 @@
+{
+  "users": [
+    { "id": "1", "username": "admin", "password": "123", "fullname": "Super Admin", "role": "PPIC" },
+    { "id": "2", "username": "in_user", "password": "123", "fullname": "User IN", "role": "IN" },
+    { "id": "3", "username": "out_user", "password": "123", "fullname": "User OUT", "role": "OUT" }
+  ],
+  "parts": [
+    { "id": "p1", "partNo": "P001", "partName": "Baut 10mm", "initialStock": 50 },
+    { "id": "p2", "partNo": "P002", "partName": "Mur 10mm", "initialStock": 100 }
+  ],
+  "transactions": []
+}
